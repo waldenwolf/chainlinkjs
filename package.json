@@ -1,0 +1,26 @@
+{
+  "name": "chainlinkjs",
+  "version": "1.0.0",
+  "description": "Chainlink JavaScript SDK for Ethers v6",
+  "homepage": "https://github.com/waldenwolf/chainlinkjs#readme",
+  "bugs": {
+    "url": "https://github.com/waldenwolf/chainlinkjs/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/waldenwolf/chainlinkjs.git"
+  },
+  "license": "MIT",
+  "author": "waldenwolf",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test tests/*.test.js tests/ciphers/*.test.js tests/ciphers/crypto/*.test.js tests/utils/*.test.js tests/connectors/**/*.test.js"
+  },
+  "dependencies": {
+    "@noble/ciphers": "2.1.1",
+    "@noble/curves": "2.0.1",
+    "@noble/hashes": "2.0.1",
+    "ethers": "6.16.0"
+  }
+}
