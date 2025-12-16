@@ -1,28 +1,41 @@
 import { ethers } from 'ethers';
 
 import transferAndCall from './utils/transferAndCall.js';
-import initializeProvider from './utils/initializeProvider.js';
 import initializeContracts from './utils/initializeContracts.js';
 import VRF_COORDINATOR_ADDRESSES from '../../chains/addresses/chainlink/VRF_COORDINATOR_ADDRESSES.js';
 
 class ChainlinkVRFConnector {
-    constructor(signer = null, chain = 'ethereum', network = 'mainnet') {
-        network = network.toLowerCase();
-        chain = chain.toLowerCase();
+    constructor(signer = null, opts = {}) {
+        if(!opts.chain){
+            opts.chain = 'ethereum';
+        }
+        if(!opts.network){
+            opts.network = 'mainnet';
+        }
+        if(!opts.providerURI && !opts.provider && !signer.provider){
+            throw new Error('providerURI, provider or signer.provider is required');
+        }
+
+        const network = opts.network.toLowerCase();
+        const chain = opts.chain.toLowerCase();
 
         if (!VRF_COORDINATOR_ADDRESSES[chain]?.[network]) {
             throw new Error(`Unsupported chain/network combination: ${chain}/${network}`);
         }
 
-        this.network = network;
         this.chain = chain;
+        this.network = network;
 
-        const { provider} = initializeProvider();
-        this.provider = provider;
+        if(opts.provider || opts.providerURI){
+            this.provider = opts.provider || new ethers.JsonRpcProvider(opts.providerURI);
+        } else {
+            this.provider = signer.provider;
+        }
+
         this.signer = signer;
         this.address = signer.address;
 
-        const { vrfCoordinator, linkToken } = initializeContracts(provider, network, chain);
+        const { vrfCoordinator, linkToken } = initializeContracts(this.provider, chain, network);
         this.vrfCoordinator = vrfCoordinator;
         this.linkToken = linkToken;
     }

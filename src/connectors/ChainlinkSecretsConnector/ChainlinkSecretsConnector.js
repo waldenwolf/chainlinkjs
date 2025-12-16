@@ -1,7 +1,6 @@
 import { ethers } from 'ethers';
 
 import { encrypt } from '../../ciphers/crypto/tdh2.js';
-import initializeProvider from './utils/initializeProvider.js';
 import initializeContracts from './utils/initializeContracts.js';
 import { createGatewayMessage } from './utils/createGatewayMessage.js';
 import FUNCTIONS_COORDINATOR_ABI from '../../chains/abis/chainlink/FUNCTIONS_COORDINATOR_ABI.js';

@@ -7,7 +7,6 @@ import derSignatureToRSV from './derSignatureToRSV.js';
 import derToRaw from './derToRaw.js';
 import estimateGasLimit from './estimateGasLimit.js';
 import getProvider from './getProvider.js';
-import initializeProvider from './initializeProvider.js';
 import isValidHexadecimal from './isValidHexadecimal.js';
 import parseSignature from './parseSignature.js';
 import prepareTransaction from './prepareTransaction.js';
@@ -27,7 +26,6 @@ export {
     derToRaw,
     estimateGasLimit,
     getProvider,
-    initializeProvider,
     isValidHexadecimal,
     parseSignature,
     prepareTransaction,

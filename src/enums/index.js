@@ -1,4 +1,4 @@
-export const FulfillmentCode = {
+const FulfillmentCode = {
     FULFILLED: 0,
     USER_CALLBACK_ERROR: 1,
     INVALID_REQUEST_ID: 2,
@@ -8,8 +8,7 @@ export const FulfillmentCode = {
     INVALID_COMMITMENT: 6
 }
 
-
-export const ReturnType = {
+const ReturnType = {
     uint: 'uint256',
     uint256: 'uint256',
     int: 'int256',

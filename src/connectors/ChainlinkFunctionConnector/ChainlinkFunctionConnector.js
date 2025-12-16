@@ -1,33 +1,53 @@
 import { ethers } from 'ethers';
 
 import transferAndCall from './utils/transferAndCall.js';
-import initializeProvider from '../../utils/initializeProvider.js';
 import initializeContracts from './utils/initializeContracts.js';
 import getChainID from '../../utils/getChainID.js';
 import TERMS_OF_SERVICE_ALLOW_LIST_ABI from '../../chains/abis/chainlink/TERMS_OF_SERVICE_ALLOW_LIST_ABI.js';
 import TERMS_OF_SERVICE_ALLOW_LIST_ADDRESSES from '../../chains/addresses/chainlink/TERMS_OF_SERVICE_ALLOW_LIST_ADDRESSES.js';
 import FUNCTIONS_ROUTER_ADDRESSES from '../../chains/addresses/chainlink/FUNCTIONS_ROUTER_ADDRESSES.js';
+import DON_IDS from '../../chains/configs/chainlink/DON_IDS.js';
+import DON_IDS_HEXES from '../../chains/configs/chainlink/DON_IDS_HEXES.js';
+import FUNCTIONS_COORDINATOR_ABI from '../../chains/abis/chainlink/FUNCTIONS_COORDINATOR_ABI.js';
 
 class ChainlinkFunctionConnector {
-    constructor(signer = null, chain = 'ethereum', network = 'mainnet') {
+    constructor(signer = null, opts = {}) {
+        if(!opts.chain){
+            opts.chain = 'ethereum';
+        }
+        if(!opts.network){
+            opts.network = 'mainnet';
+        }
+        if(!opts.providerURI && !opts.provider && !signer.provider){
+            throw new Error('providerURI, provider or signer.provider is required');
+        }
 
-        network = network.toLowerCase();
-        chain = chain.toLowerCase();
-    
+        const network = opts.network.toLowerCase();
+        const chain = opts.chain.toLowerCase();
+
         if (!FUNCTIONS_ROUTER_ADDRESSES[chain]?.[network]) {
             throw new Error(`Unsupported chain/network combination: ${chain}/${network}`);
         }
 
-        this.network = network;
         this.chain = chain;
+        this.network = network;
 
-        const { provider} = initializeProvider();
+        if(opts.provider || opts.providerURI){
+            this.provider = opts.provider || new ethers.JsonRpcProvider(opts.providerURI);
+        } else {
+            this.provider = signer.provider;
+        }
 
-        this.provider = provider;
+        const donId = DON_IDS[chain]?.[network];
+        const donIdHex = DON_IDS_HEXES[chain]?.[network];
+
+        this.donId = donId;
+        this.donIdHex = donIdHex;
+
         this.signer = signer;
         this.address = signer.address;
 
-        const { functionRouter, linkToken } = initializeContracts(provider, chain, network);
+        const { functionRouter, linkToken } = initializeContracts(this.provider, chain, network);
         this.functionRouter = functionRouter;
         this.linkToken = linkToken;
     }
@@ -311,6 +331,64 @@ class ChainlinkFunctionConnector {
         const data = await fetch(`https://functions.chain.link/api/proof?userAddress=${acceptor}&recipientAddress=${recipient}&chainId=${getChainID()}`);
         const dataJson = await data.json();
         return dataJson;
+    }
+
+    async estimateFunctionsRequestCost(options) {
+        const { donId, subscriptionId, callbackGasLimit, gasPriceWei } = options;
+       
+        if (typeof donId !== 'string') {
+            throw Error('donId has invalid type')
+          }
+      
+          const donIdBytes32 = ethers.encodeBytes32String(donId)
+      
+          await this.getSubscription(subscriptionId)
+      
+          let subscriptionIdBigInt = BigInt(subscriptionId.toString())
+      
+          if (typeof callbackGasLimit !== 'number' || callbackGasLimit <= 0) {
+            throw Error('Invalid callbackGasLimit')
+          }
+      
+          if (typeof gasPriceWei !== 'bigint' || gasPriceWei <= 0) {
+            throw Error('Invalid gasPriceWei')
+          }
+      
+          let functionsCoordinatorAddress = null;
+          try {
+            functionsCoordinatorAddress = await this.functionRouter.getContractById(donIdBytes32)
+          } catch (error) {
+            throw Error(
+              `${error}\n\nError encountered when attempting to fetch the FunctionsCoordinator address.\nEnsure the FunctionsRouter address and donId are correct and that that the provider is able to connect to the blockchain.`,
+            )
+          }
+      
+          try {
+            await this.functionRouter.isValidCallbackGasLimit(subscriptionIdBigInt, callbackGasLimit)
+          } catch (error) {
+            throw Error(
+              'Invalid callbackGasLimit. Ensure the callbackGasLimit is less than the max limit for your subscription tier.\n',
+            )
+          }
+      
+          const functionsCoordinator = new ethers.Contract(
+            functionsCoordinatorAddress,
+            FUNCTIONS_COORDINATOR_ABI,
+            this.signer,
+          )
+      
+          try {
+            const data = ethers.encodeBytes32String(donId);
+            const estimatedCostInJuels = await functionsCoordinator.estimateCost(
+              subscriptionIdBigInt,
+              data,
+              callbackGasLimit,
+              gasPriceWei,
+            )
+            return BigInt(estimatedCostInJuels.toString())
+          } catch (error) {
+            throw Error(`Unable to estimate cost':\n${error}`)
+          }
     }
 }
 

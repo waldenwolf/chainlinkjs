@@ -142,7 +142,6 @@ utils.derSignatureToRSV(der, digest, expectedAddress)   // Convert DER to RSV fo
 utils.derToRaw(derSignature)                             // Convert DER to raw signature
 utils.estimateGasLimit(provider, params, from)           // Estimate gas limit
 utils.getProvider()                                      // Get provider
-utils.initializeProvider()                               // Initialize provider
 utils.parseSignature(signature)                          // Parse signature from hex
 utils.prepareTransaction(provider, params, from, nonce)  // Prepare transaction
 utils.signatureToHex(signature)                          // Convert signature to hex
