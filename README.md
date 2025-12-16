@@ -135,6 +135,7 @@ import { utils } from './src/index.js';
 
 
 utils.canonicalizeSignature(sig)                         // Canonicalize signature format
+utils.decomposeFromChainId(chainId)                      // Decompose chain ID into chain and network (e.g. 11155111 -> { chain: 'ethereum', network: 'sepolia' })
 utils.deriveAddressFromPublicKey(key)                    // Derive address from public key
 utils.derivePublicKeyFromPrivateKey(privateKey)          // Derive public key from private key
 utils.derSignatureToRSV(der, digest, expectedAddress)   // Convert DER to RSV format (optional: expected address for recovery validation)

@@ -11,9 +11,19 @@ import DON_IDS from '../../chains/configs/chainlink/DON_IDS.js';
 import DON_IDS_HEXES from '../../chains/configs/chainlink/DON_IDS_HEXES.js';
 
 class ChainlinkSecretsConnector {
-    constructor(signer = null, chain = 'ethereum', network = 'mainnet') {
-        network = network.toLowerCase();
-        chain = chain.toLowerCase();
+    constructor(signer = null, opts = {}) {
+        if(!opts.chain){
+            opts.chain = 'ethereum';
+        }
+        if(!opts.network){
+            opts.network = 'mainnet';
+        }
+        if(!opts.providerURI && !opts.provider && !signer.provider){
+            throw new Error('providerURI, provider or signer.provider is required');
+        }
+
+        const network = opts.network.toLowerCase();
+        const chain = opts.chain.toLowerCase();
 
         if (!SECRETS_ENDPOINTS_ADDRESSES[chain]?.[network]) {
             throw new Error(`Unsupported chain/network combination: ${chain}/${network}`);
@@ -30,12 +40,16 @@ class ChainlinkSecretsConnector {
         this.donId = donId;
         this.donIdHex = donIdHex;
 
-        const { provider} = initializeProvider();
-        this.provider = provider;
+        if(opts.provider || opts.providerURI){
+            this.provider = opts.provider || new ethers.JsonRpcProvider(opts.providerURI);
+        } else {
+            this.provider = signer.provider;
+        }
+
         this.signer = signer;
         this.address = signer.address;
 
-        const { functionRouter, linkToken } = initializeContracts(provider, chain, network);
+        const { functionRouter, linkToken } = initializeContracts(this.provider, chain, network);
         this.functionRouter = functionRouter;
         this.linkToken = linkToken;
 
@@ -46,7 +60,9 @@ class ChainlinkSecretsConnector {
     async fetchKeys() {
         try {
             const contractId = ethers.encodeBytes32String(this.donId);
+            console.log('contractId', contractId);
             const contractAddress = await this.functionRouter.getContractById(contractId);
+            console.log('contractAddress', contractAddress);
             this.functionCoordinator = new ethers.Contract(contractAddress, FUNCTIONS_COORDINATOR_ABI, this.provider);
             const thresholdPublicKeyBytes = await this.functionCoordinator.getThresholdPublicKey();
 
@@ -73,7 +89,9 @@ class ChainlinkSecretsConnector {
             signature,
         })
 
+        console.log('signedSecrets', signedSecrets);
         const encryptedSignedSecrets = await encryptWithPublicKey(donPublicKey, signedSecrets)
+        console.log(encryptedSignedSecrets);
         const stringifiedEncryptedSignedSecrets = JSON.stringify(encryptedSignedSecrets)
 
         const donKeyEncryptedSecrets = {
@@ -148,6 +166,44 @@ class ChainlinkSecretsConnector {
             body: gatewayMessage,
         })
         return response.json()
+    }
+
+
+    async verifyOffchainSecrets(secretsUrls) {
+        let lastFetchedEncryptedSecrets;
+
+        for (const url of secretsUrls) {
+          let response;
+          let data;
+          try {
+            response = await fetch(url)
+            if (!response.ok) {
+                throw Error(`Error encountered when attempting to fetch URL ${url}: ${response.statusText}`)
+            }
+            data = await response.json()
+          } catch (e) {
+            throw Error(`Error encountered when attempting to fetch URL ${url}: ${e}`)
+          }
+    
+          if (!data?.encryptedSecrets) {
+            throw Error(`URL ${url} did not return a JSON object with an encryptedSecrets field`)
+          }
+    
+          if (!ethers.isHexString(data.encryptedSecrets)) {
+            throw Error(`URL ${url} did not return a valid hex string for the encryptedSecrets field`)
+          }
+    
+          if (
+            lastFetchedEncryptedSecrets &&
+            lastFetchedEncryptedSecrets !== data.encryptedSecrets
+          ) {
+            throw Error(`URL ${url} returned a different encryptedSecrets field than the previous URL`)
+          }
+    
+          lastFetchedEncryptedSecrets = data.encryptedSecrets
+        }
+    
+        return true
     }
 }
 

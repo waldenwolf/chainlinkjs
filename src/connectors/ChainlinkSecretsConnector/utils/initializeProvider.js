@@ -1,11 +1,8 @@
 import { ethers } from 'ethers';
 
-export const initializeProvider = () => {
-    const providerUri = process.env.PROVIDER_URI;
-
+export const initializeProvider = (providerUri) => {
     const provider = new ethers.JsonRpcProvider(providerUri);
-
-    return { provider };
+    return provider;
 }
 
 export default initializeProvider;
